@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   ArrowRightEndOnRectangleIcon,
   ChatBubbleLeftRightIcon,
@@ -7,14 +7,27 @@ import {
   UserGroupIcon,
   UserIcon,
 } from "@heroicons/react/24/solid";
+import { formatDistanceToNow } from "date-fns";
+import { useNavigate } from "react-router-dom";
 
-const Room = ({ username, room }) => {
+const Room = ({ username, room, socket }) => {
+  const navigate = useNavigate();
   const [roomUsers, setRoomUsers] = useState(["user1", "user2", "user3"]);
-  const [receivedMessages, setReceivedMessages] = useState([
-    "message1",
-    "message2",
-    "message3",
-  ]);
+  const [receivedMessages, setReceivedMessages] = useState([]);
+
+  useEffect(() => {
+    socket.on("message", (data) => {
+      setReceivedMessages((prevMessages) => [...prevMessages, data]);
+    });
+
+    return () => {
+      socket.disconnect();
+    };
+  }, [socket]);
+
+  const leaveChatRoom = () => {
+    navigate("/", { replace: true });
+  };
 
   return (
     <section className="flex gap-4">
@@ -43,10 +56,12 @@ const Room = ({ username, room }) => {
         <button
           type="button"
           className="absolute bottom-0 flex items-center gap-1 p-2.5 w-full mx-2 mb-2 text-lg"
+          onClick={leaveChatRoom}
         >
           <ArrowRightEndOnRectangleIcon width={24} /> Leave Room
         </button>
       </div>
+
       {/* right side */}
       <div className="w-full pt-5 relative">
         <div className="h-[30rem] overflow-y-auto">
@@ -55,10 +70,12 @@ const Room = ({ username, room }) => {
               key={index}
               className="text-white bg-blue-500 px-3 py-3 w-3/4 rounded-br-3xl rounded-tl-3xl mb-3"
             >
-              <p className="text-sm font-medium font-mono">From Su</p>
-              <p className="text-lg font-medium">{message}</p>
+              <p className="text-sm font-medium font-mono">
+                From {message.username}{" "}
+              </p>
+              <p className="text-lg font-medium">{message.message}</p>
               <p className="text-sm font-mono font-medium text-right">
-                less than a minute
+                {formatDistanceToNow(new Date(message.sent_time))}
               </p>
             </div>
           ))}
@@ -84,6 +101,7 @@ const Room = ({ username, room }) => {
 Room.propTypes = {
   username: PropTypes.string.isRequired,
   room: PropTypes.string.isRequired,
+  socket: PropTypes.any.isRequired,
 };
 
 export default Room;
