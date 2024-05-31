@@ -1,10 +1,11 @@
 import PropTypes from "prop-types";
 import { useNavigate } from "react-router-dom";
+import socketIO from "socket.io-client";
 
 import { ToastContainer, Bounce, toast } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
-const Welcome = ({ username, setUsername, room, setRoom }) => {
+const Welcome = ({ username, setUsername, room, setRoom, setSocket }) => {
   const navigate = useNavigate();
 
   const joinRoom = (e) => {
@@ -14,6 +15,9 @@ const Welcome = ({ username, setUsername, room, setRoom }) => {
       room != "select-room" &&
       room.trim().length > 0
     ) {
+      const socket = socketIO.connect("http://localhost:3000");
+      setSocket(socket);
+
       navigate("/room", { replace: true });
     } else {
       toastFire("Please enter a valid username and select a room to continue.");
@@ -98,6 +102,7 @@ Welcome.propTypes = {
   setUsername: PropTypes.func.isRequired,
   room: PropTypes.string.isRequired,
   setRoom: PropTypes.func.isRequired,
+  setSocket: PropTypes.func.isRequired,
 };
 
 export default Welcome;
