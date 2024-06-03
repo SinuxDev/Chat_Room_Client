@@ -14,8 +14,13 @@ const Room = ({ username, room, socket }) => {
   const navigate = useNavigate();
   const [roomUsers, setRoomUsers] = useState(["user1", "user2", "user3"]);
   const [receivedMessages, setReceivedMessages] = useState([]);
+  const [sentMessages, setSentMessages] = useState([]);
 
   useEffect(() => {
+    // send joined user to server
+    socket.emit("join_room", { username, room });
+
+    // get message from server
     socket.on("message", (data) => {
       setReceivedMessages((prevMessages) => [...prevMessages, data]);
     });
@@ -23,10 +28,17 @@ const Room = ({ username, room, socket }) => {
     return () => {
       socket.disconnect();
     };
-  }, [socket]);
+  }, [socket, username, room]);
 
   const leaveChatRoom = () => {
     navigate("/", { replace: true });
+  };
+
+  const sendMessageFunction = () => {
+    if (sentMessages.trim().length > 0) {
+      socket.emit("chat_message", sentMessages);
+      setSentMessages("");
+    }
   };
 
   return (
@@ -85,8 +97,9 @@ const Room = ({ username, room, socket }) => {
             type="text"
             placeholder="messages..."
             className="w-full outline-none border-b text-lg me-2"
+            onChange={(e) => setSentMessages(e.target.value)}
           />
-          <button type="button">
+          <button type="button" onClick={sendMessageFunction}>
             <PaperAirplaneIcon
               width={30}
               className="hover:text-blue-500 hover:-rotate-45 duration-200 ease-in-out transform"
