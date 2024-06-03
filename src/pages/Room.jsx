@@ -1,5 +1,5 @@
 import PropTypes from "prop-types";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   ArrowRightEndOnRectangleIcon,
   ChatBubbleLeftRightIcon,
@@ -12,20 +12,52 @@ import { useNavigate } from "react-router-dom";
 
 const Room = ({ username, room, socket }) => {
   const navigate = useNavigate();
-  const [roomUsers, setRoomUsers] = useState(["user1", "user2", "user3"]);
+  const [roomUsers, setRoomUsers] = useState([]);
   const [receivedMessages, setReceivedMessages] = useState([]);
-  const [sentMessages, setSentMessages] = useState([]);
+  const [sentMessages, setSentMessages] = useState("");
+
+  const boxDivRef = useRef(null);
 
   useEffect(() => {
     // send joined user to server
     socket.emit("join_room", { username, room });
 
     // get message from server
-    socket.on("message", (data) => {
+    const messageListener = (data) => {
       setReceivedMessages((prevMessages) => [...prevMessages, data]);
-    });
+    };
+
+    socket.on("message", messageListener);
+
+    // Handle room users update
+    const handleRoomUsers = (data) => {
+      setRoomUsers((prevRoomUsers) => {
+        const updatedRoomUsers = [...prevRoomUsers];
+
+        data.forEach((user) => {
+          const index = updatedRoomUsers.findIndex(
+            (prevUser) => prevUser.id === user.id
+          );
+
+          if (index !== -1) {
+            // Update the existing user
+            updatedRoomUsers[index] = { ...updatedRoomUsers[index], ...user };
+          } else {
+            // Add new user to the array
+            updatedRoomUsers.push(user);
+          }
+        });
+
+        return updatedRoomUsers;
+      });
+    };
+
+    // get room users from server
+    socket.on("room_users", handleRoomUsers);
 
     return () => {
+      socket.off("message", messageListener);
+      socket.off("room_users", handleRoomUsers);
       socket.disconnect();
     };
   }, [socket, username, room]);
@@ -33,6 +65,12 @@ const Room = ({ username, room, socket }) => {
   const leaveChatRoom = () => {
     navigate("/", { replace: true });
   };
+
+  useEffect(() => {
+    if (boxDivRef.current) {
+      boxDivRef.current.scrollTop = boxDivRef.current.scrollHeight;
+    }
+  }, [receivedMessages]);
 
   const sendMessageFunction = () => {
     if (sentMessages.trim().length > 0) {
@@ -61,7 +99,7 @@ const Room = ({ username, room, socket }) => {
           {roomUsers.map((user, index) => (
             <p key={index} className="flex items-end gap-1 text-sm my-2">
               <UserIcon width={24} />
-              {user}
+              {user.username === username ? "You" : user.username}
             </p>
           ))}
         </div>
@@ -76,14 +114,14 @@ const Room = ({ username, room, socket }) => {
 
       {/* right side */}
       <div className="w-full pt-5 relative">
-        <div className="h-[30rem] overflow-y-auto">
+        <div className="h-[30rem] overflow-y-auto" ref={boxDivRef}>
           {receivedMessages.map((message, index) => (
             <div
               key={index}
               className="text-white bg-blue-500 px-3 py-3 w-3/4 rounded-br-3xl rounded-tl-3xl mb-3"
             >
               <p className="text-sm font-medium font-mono">
-                From {message.username}{" "}
+                From {message.username}
               </p>
               <p className="text-lg font-medium">{message.message}</p>
               <p className="text-sm font-mono font-medium text-right">
@@ -97,6 +135,7 @@ const Room = ({ username, room, socket }) => {
             type="text"
             placeholder="messages..."
             className="w-full outline-none border-b text-lg me-2"
+            value={sentMessages}
             onChange={(e) => setSentMessages(e.target.value)}
           />
           <button type="button" onClick={sendMessageFunction}>
