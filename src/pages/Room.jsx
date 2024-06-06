@@ -7,7 +7,6 @@ import {
   UserGroupIcon,
   UserIcon,
 } from "@heroicons/react/24/solid";
-import { formatDistanceToNow } from "date-fns";
 import { useNavigate } from "react-router-dom";
 
 const Room = ({ username, room, socket }) => {
@@ -17,6 +16,25 @@ const Room = ({ username, room, socket }) => {
   const [sentMessages, setSentMessages] = useState("");
 
   const boxDivRef = useRef(null);
+
+  useEffect(() => {
+    const getOldMessages = async () => {
+      try {
+        const response = await fetch(
+          `${import.meta.env.VITE_SERVER}/room/${room}`
+        );
+        if (response.status === 403) {
+          return navigate("/", { replace: true });
+        }
+        const data = await response.json();
+        setReceivedMessages((prevMessages) => [...prevMessages, ...data]);
+      } catch {
+        console.log("Error while fetching old messages");
+      }
+    };
+
+    getOldMessages();
+  }, [room, navigate]);
 
   useEffect(() => {
     // send joined user to server
@@ -124,9 +142,6 @@ const Room = ({ username, room, socket }) => {
                 From {message.username}
               </p>
               <p className="text-lg font-medium">{message.message}</p>
-              <p className="text-sm font-mono font-medium text-right">
-                {formatDistanceToNow(new Date(message.sent_time))}
-              </p>
             </div>
           ))}
         </div>
